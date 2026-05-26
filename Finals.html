@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COVID-19 Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light p-3">
+    <div class="container bg-white p-4 rounded shadow">
+        <h2 class="text-primary mb-1">COVID-19 Finals Dashboard</h2>
+        <p class="text-muted">Part 3: Analytics Visualization</p>
+        <hr>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label for="regionFilter" class="form-label fw-bold">Filter by Region</label>
+                <select id="regionFilter" class="form-select" onchange="updateDashboard()">
+                    <option value="All">All Regions</option>
+                    <option value="NCR">NCR</option>
+                    <option value="Reg IV-A">Reg IV-A</option>
+                    <option value="Reg III">Reg III</option>
+                    <option value="Reg VII">Reg VII</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label for="searchBar" class="form-label fw-bold">Search Patient ID</label>
+                <input type="text" id="searchBar" class="form-control" placeholder="e.g., P-001" oninput="updateDashboard()">
+            </div>
+        </div>
+
+        <div class="row text-center mb-4 g-3">
+            <div class="col-md-4">
+                <div class="p-3 bg-primary bg-opacity-10 rounded border border-primary">
+                    <h5 class="text-primary">Total Cases</h5>
+                    <p id="kpiTotalCases" class="h3 fw-bold">0</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-success bg-opacity-10 rounded border border-success">
+                    <h5 class="text-success">Average Age</h5>
+                    <p id="kpiAvgAge" class="h3 fw-bold">0</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 bg-danger bg-opacity-10 rounded border border-danger">
+                    <h5 class="text-danger">Most Affected Region</h5>
+                    <p id="kpiMaxRegion" class="h3 fw-bold">-</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card p-3 shadow-sm">
+                    <h6 class="text-secondary text-center">Cases per Region (Bar Chart)</h6>
+                    <canvas id="barChart" height="200"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card p-3 shadow-sm">
+                    <h6 class="text-secondary text-center">Cases over Time (Line Chart)</h6>
+                    <canvas id="lineChart" height="200"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6 mx-auto">
+                <div class="card p-3 shadow-sm">
+                    <h6 class="text-secondary text-center">Outcome Distribution (Pie Chart)</h6>
+                    <canvas id="pieChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const mockData = [
+            { id: "P-001", region: "NCR", age: 45, outcome: "Recovered", date: "2026-01" },
+            { id: "P-002", region: "NCR", age: 62, outcome: "Deaths", date: "2026-01" },
+            { id: "P-003", region: "Reg IV-A", age: 29, outcome: "Recovered", date: "2026-01" },
+            { id: "P-004", region: "Reg III", age: 34, outcome: "Active", date: "2026-02" },
+            { id: "P-005", region: "Reg VII", age: 50, outcome: "Recovered", date: "2026-02" },
+            { id: "P-006", region: "NCR", age: 22, outcome: "Recovered", date: "2026-02" },
+            { id: "P-007", region: "Reg IV-A", age: 58, outcome: "Deaths", date: "2026-03" },
+            { id: "P-008", region: "Reg III", age: 19, outcome: "Recovered", date: "2026-03" },
+            { id: "P-009", region: "NCR", age: 31, outcome: "Recovered", date: "2026-03" },
+            { id: "P-010", region: "Reg IV-A", age: 40, outcome: "Active", date: "2026-03" }
+        ];
+
+        let barChart, lineChart, pieChart;
+
+        function updateDashboard() {
+            const selectedRegion = document.getElementById('regionFilter').value;
+            const searchQuery = document.getElementById('searchBar').value.toLowerCase().trim();
+
+            const filteredData = mockData.filter(item => {
+                const matchesRegion = (selectedRegion === 'All' || item.region === selectedRegion);
+                const matchesSearch = item.id.toLowerCase().includes(searchQuery);
+                return matchesRegion && matchesSearch;
+            });
+
+            const totalCases = filteredData.length;
+            const avgAge = totalCases > 0 ? (filteredData.reduce((sum, item) => sum + item.age, 0) / totalCases).toFixed(1) : 0;
+            
+            const regionCounts = {};
+            filteredData.forEach(item => regionCounts[item.region] = (regionCounts[item.region] || 0) + 1);
+            let mostAffectedRegion = "-";
+            let maxCount = 0;
+            for (const [region, count] of Object.entries(regionCounts)) {
+                if (count > maxCount) { maxCount = count; mostAffectedRegion = region; }
+            }
+
+            document.getElementById('kpiTotalCases').innerText = totalCases;
+            document.getElementById('kpiAvgAge').innerText = avgAge + " yrs";
+            document.getElementById('kpiMaxRegion').innerText = mostAffectedRegion;
+
+            const regions = ['NCR', 'Reg IV-A', 'Reg III', 'Reg VII'];
+            const barData = regions.map(r => filteredData.filter(item => item.region === r).length);
+
+            const timeline = ['2026-01', '2026-02', '2026-03'];
+            const lineData = timeline.map(t => filteredData.filter(item => item.date === t).length);
+
+            const outcomes = ['Recovered', 'Active', 'Deaths'];
+            const pieData = outcomes.map(o => filteredData.filter(item => item.outcome === o).length);
+
+            if (barChart) barChart.destroy();
+            if (lineChart) lineChart.destroy();
+            if (pieChart) pieChart.destroy();
+
+            barChart = new Chart(document.getElementById('barChart'), {
+                type: 'bar',
+                data: {
+                    labels: regions,
+                    datasets: [{ label: 'Cases', data: barData, backgroundColor: '#0d6efd' }]
+                },
+                options: { responsive: true }
+            });
+
+            lineChart = new Chart(document.getElementById('lineChart'), {
+                type: 'line',
+                data: {
+                    labels: timeline,
+                    datasets: [{ label: 'Cases by Month', data: lineData, borderColor: '#198754', tension: 0.2, fill: false }]
+                },
+                options: { responsive: true }
+            });
+
+            pieChart = new Chart(document.getElementById('pieChart'), {
+                type: 'pie',
+                data: {
+                    labels: outcomes,
+                    datasets: [{ data: pieData, backgroundColor: ['#28a745', '#ffc107', '#dc3545'] }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+        window.onload = updateDashboard;
+    </script>
+</body>
+</html>
